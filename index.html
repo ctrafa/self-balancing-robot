@@ -190,10 +190,10 @@
     window.addEventListener('resize', resized);
     // Sets the ball position
     repositionBall();
-    // Callback for gyroscope
+    // Callback for gyroscope and acceleration
     window.addEventListener('deviceorientation', handleOrientation);
     window.addEventListener('devicemotion', handleMotion);
-    // Sends the message every 200mins
+    // Sets sendmessage interval in milliseconds
     setInterval(sendMessage, 200);
   </script>
 </html>
