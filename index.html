@@ -1,0 +1,199 @@
+<html>
+  <head>
+    <style>
+      /* Other design definitions */
+      html {
+        background-color: white;
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
+        font-size: 14px;
+      }
+
+      /* Makes html, body and container occupy all available space */
+      html, body, #container {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      /* Main container */
+      #container {
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+      }
+      /* Main box */
+      #box {
+        border: 3px solid silver;
+        position: relative;
+        overflow: hidden;
+      }
+      /* Inside ball */
+      #ball {
+        width: 15%;
+        height: 15%;
+        position: absolute;
+        border-radius: 50%;
+        background: radial-gradient(circle at 5% 5%, #5cabff, #000);
+      }
+      /* Information */
+      #information {
+        border-left: 3px solid silver;
+        border-right: 3px solid silver;
+        display: flex;
+        flex-direction: column;
+      }
+      #information div {
+        box-sizing: border-box;
+        width: 100%;
+        height: 40px;
+        border-bottom: 3px solid silver;
+      }
+      /* Information line */
+      .line {
+        display: flex;
+      }
+      .line div {
+        padding: 10px;
+      }
+      .line div:first-child {
+        border-right: 3px solid silver;        
+      }
+    </style>
+  </head>
+  <!-- Begin of the body -->
+  <body>
+    <!-- Main container, which has the main box and its information bar -->
+    <div id="container">
+      <!-- Main box -->
+      <div id="box">
+        <div id="ball"></div>
+      </div>
+      <div id="information">
+        <div class="line">
+          <div id="alpha">Alpha</div>
+          <div id="x">X</div>
+        </div>
+        <div class="line">
+          <div id="beta">Beta</div>
+          <div id="y">Y</div>
+          </div>
+        <div class="line">
+          <div id="gamma">Gamma</div>
+          <div id="z">Z</div>
+        </div>
+      </div>
+    </div>
+  </body>
+
+  <!-- Javascript -->
+  <script>
+    /* Global object */
+    const globals = {
+      socket: new WebSocket("wss://" + window.location.host + "/ws/iotphone"),
+      beta: 0,
+      gamma: 0,
+    };
+
+    /* Do layout adjustments everytime the window is resized */
+    function resized() {
+      const container = document.getElementById('container');
+      const boxSize = Math.min(container.clientWidth, container.clientHeight - 120);
+      const box = document.getElementById('box');
+      const information = document.getElementById('information');
+      box.style.width = boxSize - 50;
+      box.style.height = boxSize - 50;
+      information.style.width = box.style.width;
+
+      // Store the box size in globals
+      globals.boxSize = boxSize;
+    }
+
+    /* Called everytime theres a change in orientation */
+    function handleOrientation(event) {
+      // Stores in temporary variables
+      const alpha = event.alpha;
+      const beta = event.beta;
+      const gamma = event.gamma;
+
+      // Updates the information boxes
+      document.getElementById('alpha').innerHTML = 'Alpha: ' + alpha;
+      document.getElementById('beta').innerHTML = 'Beta: ' + beta;
+      document.getElementById('gamma').innerHTML = 'Gamma: ' + gamma;
+
+      // Stores in global variables
+      globals.alpha = alpha;
+      globals.beta = beta;
+      globals.gamma = gamma;
+
+      // Sets the ball position
+      repositionBall();
+    }
+
+    /* Position the ball */
+    function repositionBall() {
+      // Used variables
+      const ball = document.getElementById('ball');
+      const box = document.getElementById('box');
+      const ballSize = ball.clientWidth;
+      const boxSize = globals.boxSize;
+      beta = globals.beta;    // (vertical axis) -180 a 180
+      gamma = globals.gamma;  // (horizontal axis) -90 a 90
+      const maxX = box.clientWidth  - ball.clientWidth;
+      const maxY = box.clientHeight - ball.clientHeight;
+
+      // Set boundaries for beta because we don't want to have the device upside down
+      if (x >  90) { x =  90};
+      if (x < -90) { x = -90};
+
+      // To make computation easier we shift the range of 
+      // x and y to [0,180]
+      beta += 90;
+      gamma += 90;
+
+      // Calculates the ball position
+      const posX = (maxX*beta/180 - 10);
+      const posY = (maxY*gamma/180 - 10);
+
+      // Sets the ball position
+      ball.style.top = posX + 'px';
+      ball.style.left = posY + 'px';
+    }
+
+    /* Called everytime theres a change in motion */
+    function handleMotion(event) {
+      // Stores in temporary variables
+      const x = event.accelerationIncludingGravity.x;
+      const y = event.accelerationIncludingGravity.y;
+      const z = event.accelerationIncludingGravity.z;
+
+      // Updates the information boxes
+      document.getElementById('x').innerHTML = 'X: ' + x;
+      document.getElementById('y').innerHTML = 'Y: ' + y;
+      document.getElementById('z').innerHTML = 'Z: ' + z;
+
+      // Stores in global variables
+      globals.x = x;
+      globals.y = y;
+      globals.z = z;
+    }
+
+    /* Dispatches the message */
+    function sendMessage() {
+      const message = '{"d":{"alpha": "' + globals.alpha +'", "beta": "' + globals.beta +
+        '", "gama":"'+ globals.gamma + '", "x":"' + globals.x + '", "y":"'+ globals.y + '", "z":"' + globals.z +'"}}';
+      globals.socket.send(message);
+    }
+
+    // Callback everytime the window is resized
+    resized();
+    window.addEventListener('resize', resized);
+    // Sets the ball position
+    repositionBall();
+    // Callback for gyroscope
+    window.addEventListener('deviceorientation', handleOrientation);
+    window.addEventListener('devicemotion', handleMotion);
+    // Sends the message every 200mins
+    setInterval(sendMessage, 200);
+  </script>
+</html>
